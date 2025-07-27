@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auth Debug Test</title>
+</head>
+<body>
+    <h1>Authentication Debug Test</h1>
+    <div id="debug-info"></div>
+    
+    <script>
+        // Check localStorage for token
+        const token = localStorage.getItem('token');
+        const debugInfo = document.getElementById('debug-info');
+        
+        debugInfo.innerHTML = `
+            <h2>Debug Information:</h2>
+            <p><strong>Token in localStorage:</strong> ${token ? 'Present' : 'Not found'}</p>
+            <p><strong>Token value:</strong> ${token ? token.substring(0, 50) + '...' : 'N/A'}</p>
+            <button onclick="clearToken()">Clear Token</button>
+            <button onclick="testAuth()">Test Auth Endpoint</button>
+            <div id="auth-result"></div>
+        `;
+        
+        function clearToken() {
+            localStorage.removeItem('token');
+            alert('Token cleared! Refresh the page to see the login screen.');
+        }
+        
+        async function testAuth() {
+            const resultDiv = document.getElementById('auth-result');
+            try {
+                const response = await fetch('http://100.123.199.100:9001/api/v1/auth/me', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    resultDiv.innerHTML = `<p style="color: green;">✅ Auth successful: ${data.user.name}</p>`;
+                } else {
+                    resultDiv.innerHTML = `<p style="color: red;">❌ Auth failed: ${response.status}</p>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<p style="color: red;">❌ Error: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html> 

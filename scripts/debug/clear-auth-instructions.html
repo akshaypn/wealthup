@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clear Authentication - Wealthup</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 10px;
+            border: 1px solid #e9ecef;
+        }
+        .button {
+            background: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        .button:hover {
+            background: #0056b3;
+        }
+        .success {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .error {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        .step {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Clear Authentication State</h1>
+        <p>This page helps you clear your authentication state and see the login page.</p>
+        
+        <div class="info">
+            <strong>Current Status:</strong>
+            <div id="status">Checking...</div>
+        </div>
+        
+        <div class="step">
+            <h3>Step 1: Clear Authentication Data</h3>
+            <p>Click the button below to clear any stored authentication data:</p>
+            <button class="button" onclick="clearAuth()">Clear Authentication Data</button>
+            <div id="clear-result"></div>
+        </div>
+        
+        <div class="step">
+            <h3>Step 2: Test Authentication</h3>
+            <p>Test if the authentication is working:</p>
+            <button class="button" onclick="testAuth()">Test Authentication</button>
+            <div id="test-result"></div>
+        </div>
+        
+        <div class="step">
+            <h3>Step 3: Go to Application</h3>
+            <p>After clearing the authentication data, go to the main application:</p>
+            <a href="http://100.123.199.100:9000" target="_blank" class="button">Open Wealthup</a>
+        </div>
+        
+        <div class="step">
+            <h3>Manual Steps (if needed)</h3>
+            <ol>
+                <li>Open browser developer tools (F12)</li>
+                <li>Go to Application/Storage tab</li>
+                <li>Find "Local Storage" → "http://100.123.199.100:9000"</li>
+                <li>Delete any "token" entry</li>
+                <li>Refresh the page</li>
+            </ol>
+        </div>
+    </div>
+    
+    <script>
+        // Check current authentication status
+        function checkStatus() {
+            const token = localStorage.getItem('token');
+            const statusDiv = document.getElementById('status');
+            
+            if (token) {
+                statusDiv.innerHTML = '<span class="error">❌ Token found in localStorage</span>';
+            } else {
+                statusDiv.innerHTML = '<span class="success">✅ No token found - ready for login</span>';
+            }
+        }
+        
+        // Clear authentication data
+        function clearAuth() {
+            localStorage.removeItem('token');
+            sessionStorage.removeItem('token');
+            
+            // Also clear any other auth-related data
+            const keysToRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.toLowerCase().includes('auth') || key && key.toLowerCase().includes('token')) {
+                    keysToRemove.push(key);
+                }
+            }
+            
+            keysToRemove.forEach(key => localStorage.removeItem(key));
+            
+            const resultDiv = document.getElementById('clear-result');
+            resultDiv.innerHTML = '<span class="success">✅ Authentication data cleared successfully!</span>';
+            
+            // Update status
+            checkStatus();
+        }
+        
+        // Test authentication
+        async function testAuth() {
+            const resultDiv = document.getElementById('test-result');
+            resultDiv.innerHTML = 'Testing...';
+            
+            try {
+                const response = await fetch('http://100.123.199.100:9001/api/v1/auth/me', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token') || 'invalid'}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    resultDiv.innerHTML = `<span class="error">❌ User is authenticated: ${data.user.name}</span>`;
+                } else {
+                    resultDiv.innerHTML = '<span class="success">✅ No valid authentication found</span>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = '<span class="success">✅ No valid authentication found</span>';
+            }
+        }
+        
+        // Initialize
+        checkStatus();
+    </script>
+</body>
+</html> 

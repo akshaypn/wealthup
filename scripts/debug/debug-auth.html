@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auth Debug - Wealthup</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .debug { background: #f0f0f0; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Authentication Debug</h1>
+    
+    <div class="debug">
+        <h3>Current State:</h3>
+        <div id="state"></div>
+    </div>
+    
+    <div class="debug">
+        <h3>Actions:</h3>
+        <button onclick="clearAuth()">Clear Auth</button>
+        <button onclick="testAuth()">Test Auth</button>
+        <button onclick="checkMainApp()">Check Main App</button>
+    </div>
+    
+    <div class="debug">
+        <h3>Results:</h3>
+        <div id="results"></div>
+    </div>
+    
+    <script>
+        function updateState() {
+            const token = localStorage.getItem('token');
+            const stateDiv = document.getElementById('state');
+            stateDiv.innerHTML = `
+                <p><strong>Token in localStorage:</strong> <span class="${token ? 'success' : 'error'}">${token ? 'Present' : 'Not found'}</span></p>
+                <p><strong>Token value:</strong> ${token ? token.substring(0, 50) + '...' : 'N/A'}</p>
+                <p><strong>Current URL:</strong> ${window.location.href}</p>
+            `;
+        }
+        
+        function clearAuth() {
+            localStorage.removeItem('token');
+            sessionStorage.clear();
+            updateState();
+            document.getElementById('results').innerHTML = '<p class="success">✅ Auth cleared!</p>';
+        }
+        
+        async function testAuth() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<p class="info">Testing...</p>';
+            
+            try {
+                const response = await fetch('http://100.123.199.100:9001/api/v1/auth/me', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token') || 'invalid'}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    resultsDiv.innerHTML = `<p class="success">✅ Authenticated: ${data.user.name}</p>`;
+                } else {
+                    resultsDiv.innerHTML = `<p class="error">❌ Not authenticated: ${response.status}</p>`;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<p class="error">❌ Error: ${error.message}</p>`;
+            }
+        }
+        
+        function checkMainApp() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = `
+                <p class="info">📋 Main App Check:</p>
+                <p>1. <a href="http://100.123.199.100:9000" target="_blank">Open Main App</a></p>
+                <p>2. Open browser console (F12)</p>
+                <p>3. Look for authentication logs starting with 🔍</p>
+                <p>4. Check if you see login page or dashboard</p>
+            `;
+        }
+        
+        // Initialize
+        updateState();
+    </script>
+</body>
+</html> 

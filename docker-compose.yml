@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  frontend:
+    build: ./frontend
+    ports:
+      - "9000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://100.123.199.100:9001
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - wealthup-network
+
+  backend:
+    build: ./backend
+    ports:
+      - "9001:3001"
+    environment:
+      - PORT=3001
+      - AI_SERVICE_URL=http://ai-service:8000
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://wealthup_user:wealthup_password@postgres:5432/wealthup
+      - CORS_ORIGIN=http://100.123.199.100:9000
+    depends_on:
+      - ai-service
+      - postgres
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - ./data:/app/data
+    networks:
+      - wealthup-network
+
+  ai-service:
+    build: ./ai-service
+    ports:
+      - "9002:8000"
+    env_file:
+      - ./ai-service/.env
+    volumes:
+      - ./ai-service:/app
+    networks:
+      - wealthup-network
+
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - "9003:5432"
+    environment:
+      - POSTGRES_DB=wealthup
+      - POSTGRES_USER=wealthup_user
+      - POSTGRES_PASSWORD=wealthup_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/db:/docker-entrypoint-initdb.d
+    networks:
+      - wealthup-network
+
+volumes:
+  postgres_data:
+
+networks:
+  wealthup-network:
+    driver: bridge 
