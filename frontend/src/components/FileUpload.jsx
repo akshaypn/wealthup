@@ -66,7 +66,21 @@ const FileUpload = ({ onUpload, onClose, selectedAccount }) => {
     reader.onload = (e) => {
       const text = e.target.result
       const lines = text.split('\n')
-      const headers = lines[0].split(',').map(h => h.trim())
+      
+      // Detect separator (tab vs comma)
+      const firstLine = lines[0]
+      const hasTabs = firstLine.includes('\t')
+      const hasCommas = firstLine.includes(',')
+      
+      let separator = ','
+      if (hasTabs) {
+        separator = '\t'
+      } else if (hasCommas) {
+        separator = ','
+      }
+      
+      // Parse headers with proper separator
+      const headers = firstLine.split(separator).map(h => h.trim())
       
       // Improved bank detection logic
       const headerText = headers.join(' ').toLowerCase()
@@ -93,8 +107,9 @@ const FileUpload = ({ onUpload, onClose, selectedAccount }) => {
       
       setDetectedBank(detected)
       
+      // Parse data rows with proper separator
       const data = lines.slice(1, 6).map(line => {
-        const values = line.split(',').map(v => v.trim())
+        const values = line.split(separator).map(v => v.trim())
         const row = {}
         headers.forEach((header, index) => {
           row[header] = values[index] || ''
