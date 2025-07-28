@@ -87,7 +87,8 @@ const FileUpload = ({ onUpload, onClose, selectedAccount }) => {
       let detected = 'unknown'
       
       // More specific detection logic
-      if (headerText.includes('canara') || headers.some(h => h.toLowerCase().includes('canara'))) {
+      if (headerText.includes('canara') || headers.some(h => h.toLowerCase().includes('canara')) || 
+          headers.some(h => h.toLowerCase().includes('txn date')) && headers.some(h => h.toLowerCase().includes('branch code'))) {
         detected = 'canara_bank'
       } else if (headerText.includes('hdfc') || headers.some(h => h.toLowerCase().includes('hdfc'))) {
         detected = 'hdfc_bank'
@@ -107,9 +108,27 @@ const FileUpload = ({ onUpload, onClose, selectedAccount }) => {
       
       setDetectedBank(detected)
       
-      // Parse data rows with proper separator
+      // Parse data rows with proper separator and quoted fields
       const data = lines.slice(1, 6).map(line => {
-        const values = line.split(separator).map(v => v.trim())
+        // Handle quoted CSV fields properly
+        const values = []
+        let current = ''
+        let inQuotes = false
+        
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i]
+          
+          if (char === '"') {
+            inQuotes = !inQuotes
+          } else if (char === separator && !inQuotes) {
+            values.push(current.trim())
+            current = ''
+          } else {
+            current += char
+          }
+        }
+        values.push(current.trim()) // Add the last value
+        
         const row = {}
         headers.forEach((header, index) => {
           row[header] = values[index] || ''
