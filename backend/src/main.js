@@ -214,13 +214,14 @@ app.get('/api/v1/accounts/:accountId/ledger', authenticateToken, async (req, res
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `, [...params, limit, offset]);
 
-    // Calculate running balance
-    const transactions = transactionsResult.rows.map((txn, index) => {
+    // Calculate running balance from the beginning
+    let runningBalance = 0;
+    const transactions = transactionsResult.rows.map((txn) => {
       const amount = parseFloat(txn.amount);
       const balanceChange = txn.type === 'credit' ? amount : -amount;
       
-      // Calculate running balance (this is simplified - in production you'd want to calculate from the beginning)
-      const runningBalance = parseFloat(txn.balance) || 0;
+      // Add to running balance
+      runningBalance += balanceChange;
       
       return {
         ...txn,
@@ -410,7 +411,7 @@ app.get('/api/v1/transactions/uncategorized/count', authenticateToken, async (re
 // Get transactions (protected)
 app.get('/api/v1/transactions', authenticateToken, async (req, res) => {
   try {
-    const { period = '2025', category, account, limit = 1000, offset = 0 } = req.query;
+    const { period = 'all', category, account, limit = 1000, offset = 0 } = req.query;
     
     let whereClause = 'WHERE t.user_id = $1';
     const params = [req.user.id];

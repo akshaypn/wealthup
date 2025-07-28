@@ -20,9 +20,26 @@ const SpendingChart = ({ transactions }) => {
     const startDate = new Date('2025-01-01')
     const endDate = today > new Date('2025-12-31') ? new Date('2025-12-31') : today
     
+    // Create a map of all dates in 2025
     for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
       const date = format(d, 'yyyy-MM-dd')
       chartData[date] = { income: 0, expenses: 0 }
+    }
+    
+    // Fill in transaction data
+    if (transactions && Array.isArray(transactions)) {
+      transactions.forEach(transaction => {
+        const date = transaction.date
+        const amount = parseFloat(transaction.amount || 0)
+        
+        if (chartData[date]) {
+          if (transaction.type === 'credit') {
+            chartData[date].income += amount
+          } else {
+            chartData[date].expenses += amount
+          }
+        }
+      })
     }
     
     // Fill in transaction data
