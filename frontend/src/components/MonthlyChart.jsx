@@ -13,9 +13,9 @@ import {
 
 const MonthlyChart = ({ transactions }) => {
   const data = useMemo(() => {
-    // Get last 12 months
-    const endDate = new Date()
-    const startDate = subMonths(endDate, 11)
+    // Get 2025 months only
+    const startDate = new Date('2025-01-01')
+    const endDate = new Date('2025-12-31')
     
     const months = eachMonthOfInterval({ start: startDate, end: endDate })
     

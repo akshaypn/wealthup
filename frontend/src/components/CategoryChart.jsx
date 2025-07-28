@@ -23,7 +23,7 @@ const CategoryChart = ({ transactions, categories }) => {
     if (transactions && Array.isArray(transactions)) {
       transactions.forEach(transaction => {
         if (transaction.type === 'debit') {
-          const categoryName = transaction.aiCategory || 'Other'
+          const categoryName = transaction.category_name || 'Uncategorized'
           const amount = parseFloat(transaction.amount || 0)
           categoryTotals[categoryName] = (categoryTotals[categoryName] || 0) + amount
         }

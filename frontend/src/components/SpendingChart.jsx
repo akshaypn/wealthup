@@ -15,9 +15,13 @@ const SpendingChart = ({ transactions }) => {
   const data = useMemo(() => {
     const chartData = {}
     
-    // Initialize last 30 days with 0 values
-    for (let i = 29; i >= 0; i--) {
-      const date = format(subDays(new Date(), i), 'yyyy-MM-dd')
+    // Initialize last 30 days with 0 values (only 2025)
+    const today = new Date()
+    const startDate = new Date('2025-01-01')
+    const endDate = today > new Date('2025-12-31') ? new Date('2025-12-31') : today
+    
+    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+      const date = format(d, 'yyyy-MM-dd')
       chartData[date] = { income: 0, expenses: 0 }
     }
     

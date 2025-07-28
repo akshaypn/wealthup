@@ -41,7 +41,7 @@ const GOOGLE_CLIENT_ID = '411624710752-c6ju3ke4galebaheekegct0pq1kenoa8.apps.goo
 
 function Dashboard() {
   const { user, logout, isAuthenticated } = useAuth()
-  const [selectedPeriod, setSelectedPeriod] = useState('all')
+  const [selectedPeriod, setSelectedPeriod] = useState('2025')
   const [selectedCategory, setSelectedCategory] = useState(null)
   const [isCategorizing, setIsCategorizing] = useState(false)
   const [categorizeProgress, setCategorizeProgress] = useState({ current: 0, total: 0 })

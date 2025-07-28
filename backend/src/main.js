@@ -410,7 +410,7 @@ app.get('/api/v1/transactions/uncategorized/count', authenticateToken, async (re
 // Get transactions (protected)
 app.get('/api/v1/transactions', authenticateToken, async (req, res) => {
   try {
-    const { period = 'all', category, account, limit = 1000, offset = 0 } = req.query;
+    const { period = '2025', category, account, limit = 1000, offset = 0 } = req.query;
     
     let whereClause = 'WHERE t.user_id = $1';
     const params = [req.user.id];
@@ -418,8 +418,12 @@ app.get('/api/v1/transactions', authenticateToken, async (req, res) => {
 
     // Add period filter
     if (period && period !== 'all') {
-      const days = period === '7d' ? 7 : period === '30d' ? 30 : period === '90d' ? 90 : 365;
-      whereClause += ` AND t.date >= CURRENT_DATE - INTERVAL '${days} days'`;
+      if (period === '2025') {
+        whereClause += ` AND t.date >= '2025-01-01' AND t.date <= '2025-12-31'`;
+      } else {
+        const days = period === '7d' ? 7 : period === '30d' ? 30 : period === '90d' ? 90 : 365;
+        whereClause += ` AND t.date >= CURRENT_DATE - INTERVAL '${days} days'`;
+      }
     }
 
     // Add category filter

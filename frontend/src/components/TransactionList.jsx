@@ -25,13 +25,8 @@ const TransactionList = ({ transactions, categories, onCategoryChange }) => {
   }
 
   const getCategoryName = (transaction) => {
-    // If user has manually set a category, use that
-    if (transaction.categoryId) {
-      const category = categories.find(c => c.id === transaction.categoryId)
-      return category?.name || 'Uncategorized'
-    }
-    // Otherwise use AI categorization
-    return transaction.aiCategory || 'Uncategorized'
+    // Use the category_name from the database
+    return transaction.category_name || 'Uncategorized'
   }
 
   const getCategoryColor = (transaction) => {
