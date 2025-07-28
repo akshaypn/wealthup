@@ -16,7 +16,20 @@ class BaseParser {
 
   parseAmount(amountStr) {
     if (!amountStr) return 0;
-    const cleaned = String(amountStr).replace(/["',\s₹]/g, '');
+    
+    // Handle Indian currency format with commas
+    let cleaned = String(amountStr).trim();
+    
+    // Remove currency symbols and quotes
+    cleaned = cleaned.replace(/["'₹]/g, '');
+    
+    // Remove spaces
+    cleaned = cleaned.replace(/\s/g, '');
+    
+    // Handle Indian number format (commas every 3 digits from right)
+    // Convert "18,163" to "18163"
+    cleaned = cleaned.replace(/,/g, '');
+    
     const parsed = parseFloat(cleaned);
     return isNaN(parsed) ? 0 : parsed;
   }
@@ -311,8 +324,25 @@ async function parseCSVFile(filePath, bankName = null) {
     let parser = null;
     let headers = [];
 
+    // First, detect the separator by reading the first line
+    const firstLine = fs.readFileSync(filePath, 'utf8').split('\n')[0];
+    const hasTabs = firstLine.includes('\t');
+    const hasCommas = firstLine.includes(',');
+    
+    let separator = ',';
+    if (hasTabs) {
+      separator = '\t';
+    } else if (hasCommas) {
+      separator = ',';
+    }
+
     fs.createReadStream(filePath)
-      .pipe(csv())
+      .pipe(csv({
+        separator: separator,
+        quote: '"',
+        escape: '"',
+        strict: false
+      }))
       .on('headers', (headerList) => {
         headers = headerList;
         if (bankName) {
