@@ -165,7 +165,7 @@ app.delete('/api/v1/accounts/:accountId', authenticateToken, deleteAccount);
 app.get('/api/v1/accounts/:accountId/ledger', authenticateToken, async (req, res) => {
   try {
     const { accountId } = req.params;
-    const { page = 1, limit = 50 } = req.query;
+    const { page = 1, limit = 50, type, period } = req.query;
     const offset = (page - 1) * limit;
 
     // Verify account belongs to user
@@ -180,6 +180,26 @@ app.get('/api/v1/accounts/:accountId/ledger', authenticateToken, async (req, res
 
     const account = accountCheck.rows[0];
 
+    // Build WHERE clause with filters
+    let whereConditions = ['t.account_id = $1', 't.user_id = $2'];
+    let params = [accountId, req.user.id];
+    let paramIndex = 3;
+
+    // Add type filter
+    if (type && type !== 'all') {
+      whereConditions.push(`t.type = $${paramIndex}`);
+      params.push(type);
+      paramIndex++;
+    }
+
+    // Add period filter
+    if (period && period !== 'all') {
+      const days = period === '7d' ? 7 : period === '30d' ? 30 : period === '90d' ? 90 : 365;
+      whereConditions.push(`t.date >= CURRENT_DATE - INTERVAL '${days} days'`);
+    }
+
+    const whereClause = whereConditions.join(' AND ');
+
     // Get transactions with running balance
     const transactionsResult = await pool.query(`
       SELECT 
@@ -189,10 +209,10 @@ app.get('/api/v1/accounts/:accountId/ledger', authenticateToken, async (req, res
         ROW_NUMBER() OVER (ORDER BY t.date DESC, t.created_at DESC) as row_num
       FROM transactions t
       LEFT JOIN categories c ON t.category_id = c.id
-      WHERE t.account_id = $1 AND t.user_id = $2
+      WHERE ${whereClause}
       ORDER BY t.date DESC, t.created_at DESC
-      LIMIT $3 OFFSET $4
-    `, [accountId, req.user.id, limit, offset]);
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+    `, [...params, limit, offset]);
 
     // Calculate running balance
     const transactions = transactionsResult.rows.map((txn, index) => {
@@ -209,10 +229,10 @@ app.get('/api/v1/accounts/:accountId/ledger', authenticateToken, async (req, res
       };
     });
 
-    // Get total count for pagination
+    // Get total count for pagination with same filters
     const countResult = await pool.query(
-      'SELECT COUNT(*) FROM transactions WHERE account_id = $1 AND user_id = $2',
-      [accountId, req.user.id]
+      `SELECT COUNT(*) FROM transactions t WHERE ${whereClause}`,
+      params
     );
 
     const totalCount = parseInt(countResult.rows[0].count);
@@ -390,7 +410,7 @@ app.get('/api/v1/transactions/uncategorized/count', authenticateToken, async (re
 // Get transactions (protected)
 app.get('/api/v1/transactions', authenticateToken, async (req, res) => {
   try {
-    const { period = 'all', category, account, limit = 100, offset = 0 } = req.query;
+    const { period = 'all', category, account, limit = 1000, offset = 0 } = req.query;
     
     let whereClause = 'WHERE t.user_id = $1';
     const params = [req.user.id];
