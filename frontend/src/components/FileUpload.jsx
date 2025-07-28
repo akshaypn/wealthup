@@ -4,13 +4,14 @@ import { Upload, X, FileText, Info, Building2 } from 'lucide-react'
 import { useQuery } from 'react-query'
 import axios from 'axios'
 
-const API_BASE_URL = process.env.VITE_API_URL || 'http://100.123.199.100:9001'
+const API_BASE_URL = process.env.VITE_API_URL || 'http://localhost:9001'
 
-const FileUpload = ({ onUpload, onClose }) => {
+const FileUpload = ({ onUpload, onClose, selectedAccount }) => {
   const [selectedFile, setSelectedFile] = useState(null)
   const [previewData, setPreviewData] = useState([])
   const [isUploading, setIsUploading] = useState(false)
-  const [selectedAccountId, setSelectedAccountId] = useState('')
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [selectedAccountId, setSelectedAccountId] = useState(selectedAccount?.id || '')
   const [detectedBank, setDetectedBank] = useState('')
 
   // Fetch user accounts
@@ -36,6 +37,13 @@ const FileUpload = ({ onUpload, onClose }) => {
   const accounts = accountsData?.accounts || []
   const banks = banksData?.banks || []
 
+  // Update selected account when selectedAccount prop changes
+  React.useEffect(() => {
+    if (selectedAccount) {
+      setSelectedAccountId(selectedAccount.id)
+    }
+  }, [selectedAccount])
+
   const onDrop = useCallback((acceptedFiles) => {
     const file = acceptedFiles[0]
     if (file) {
@@ -60,15 +68,28 @@ const FileUpload = ({ onUpload, onClose }) => {
       const lines = text.split('\n')
       const headers = lines[0].split(',').map(h => h.trim())
       
-      // Try to detect bank from headers
+      // Improved bank detection logic
       const headerText = headers.join(' ').toLowerCase()
       let detected = 'unknown'
       
-      if (headerText.includes('canara')) detected = 'canara_bank'
-      else if (headerText.includes('hdfc')) detected = 'hdfc_bank'
-      else if (headerText.includes('icici')) detected = 'icici_bank'
-      else if (headerText.includes('sbi') || headerText.includes('state bank')) detected = 'sbi_bank'
-      else if (headerText.includes('credit') || headerText.includes('card')) detected = 'credit_card'
+      // More specific detection logic
+      if (headerText.includes('canara') || headers.some(h => h.toLowerCase().includes('canara'))) {
+        detected = 'canara_bank'
+      } else if (headerText.includes('hdfc') || headers.some(h => h.toLowerCase().includes('hdfc'))) {
+        detected = 'hdfc_bank'
+      } else if (headerText.includes('icici') || headers.some(h => h.toLowerCase().includes('icici'))) {
+        detected = 'icici_bank'
+      } else if (headerText.includes('sbi') || headerText.includes('state bank') || headers.some(h => h.toLowerCase().includes('sbi'))) {
+        detected = 'sbi_bank'
+      } else if (
+        // Only detect as credit card if it's clearly a credit card statement
+        (headerText.includes('credit card') || headerText.includes('creditcard')) &&
+        (headers.some(h => h.toLowerCase().includes('post date')) || 
+         headers.some(h => h.toLowerCase().includes('category')) ||
+         headers.some(h => h.toLowerCase().includes('type')))
+      ) {
+        detected = 'credit_card'
+      }
       
       setDetectedBank(detected)
       
@@ -88,6 +109,8 @@ const FileUpload = ({ onUpload, onClose }) => {
   const handleUpload = async () => {
     if (selectedFile) {
       setIsUploading(true)
+      setUploadProgress(0)
+      
       try {
         const formData = new FormData()
         formData.append('file', selectedFile)
@@ -96,9 +119,42 @@ const FileUpload = ({ onUpload, onClose }) => {
           formData.append('account_id', selectedAccountId)
         }
 
-        await onUpload(selectedFile, detectedBank, selectedAccountId)
-      } finally {
+        // Simulate progress updates with more realistic timing
+        const progressInterval = setInterval(() => {
+          setUploadProgress(prev => {
+            if (prev >= 85) {
+              clearInterval(progressInterval)
+              return prev
+            }
+            return prev + 5
+          })
+        }, 300)
+
+        const response = await onUpload(selectedFile, detectedBank, selectedAccountId)
+        
+        clearInterval(progressInterval)
+        setUploadProgress(100)
+        
+        // Show success message with details
+        if (response && response.data) {
+          const { transactionsProcessed, transactionsSkipped, transactionsInvalid, totalTransactions } = response.data
+          console.log(`📊 Upload Complete: ${transactionsProcessed} processed, ${transactionsSkipped} skipped, ${transactionsInvalid} invalid out of ${totalTransactions} total`)
+        }
+        
+        // Reset after successful upload
+        setTimeout(() => {
+          setIsUploading(false)
+          setUploadProgress(0)
+          setSelectedFile(null)
+          setPreviewData([])
+          setDetectedBank('')
+        }, 2000)
+        
+      } catch (error) {
+        console.error('Upload failed:', error)
+        clearInterval(progressInterval)
         setIsUploading(false)
+        setUploadProgress(0)
       }
     }
   }
@@ -120,7 +176,9 @@ const FileUpload = ({ onUpload, onClose }) => {
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex justify-between items-center p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">Upload Bank Statement</h2>
+          <h2 className="text-xl font-semibold text-gray-900">
+            {selectedAccount ? `Upload Statement for ${selectedAccount.name}` : 'Upload Bank Statement'}
+          </h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -131,7 +189,7 @@ const FileUpload = ({ onUpload, onClose }) => {
 
         <div className="p-6">
           {/* Account Selection */}
-          {accounts.length > 0 && (
+          {accounts.length > 0 && !selectedAccount && (
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Select Account (Optional)
@@ -148,6 +206,23 @@ const FileUpload = ({ onUpload, onClose }) => {
                   </option>
                 ))}
               </select>
+            </div>
+          )}
+
+          {/* Selected Account Info */}
+          {selectedAccount && (
+            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center gap-3">
+                <Building2 className="h-5 w-5 text-blue-600" />
+                <div>
+                  <h4 className="text-sm font-medium text-blue-900">
+                    Uploading for: {selectedAccount.name}
+                  </h4>
+                  <p className="text-sm text-blue-700">
+                    {selectedAccount.institution} - {selectedAccount.type.replace('_', ' ').toUpperCase()}
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 
@@ -183,17 +258,15 @@ const FileUpload = ({ onUpload, onClose }) => {
                 <FileText className="h-5 w-5 text-blue-600" />
                 <div>
                   <p className="font-medium text-gray-900">{selectedFile.name}</p>
-                  <p className="text-sm text-gray-500">
-                    {(selectedFile.size / 1024).toFixed(1)} KB
-                  </p>
+                  <p className="text-sm text-gray-500">{(selectedFile.size / 1024).toFixed(1)} KB</p>
                 </div>
               </div>
 
-              {/* Bank Detection */}
+              {/* Detected Bank Info */}
               {detectedBank && (
                 <div className="mb-4 p-3 bg-blue-50 rounded-lg">
                   <div className="flex items-center gap-2">
-                    <Building2 className="h-4 w-4 text-blue-600" />
+                    <Info className="h-4 w-4 text-blue-600" />
                     <span className="text-sm font-medium text-blue-800">
                       Detected Bank: {getBankDisplayName(detectedBank)}
                     </span>
@@ -201,10 +274,12 @@ const FileUpload = ({ onUpload, onClose }) => {
                 </div>
               )}
 
-              {/* Data Preview */}
+              {/* Preview Table */}
               {previewData.length > 0 && (
                 <div className="mb-6">
-                  <h4 className="text-sm font-medium text-gray-900 mb-2">Preview (first 5 rows)</h4>
+                  <h4 className="text-sm font-medium text-gray-900 mb-2">
+                    Preview (first 5 rows)
+                  </h4>
                   <div className="border border-gray-200 rounded-lg overflow-hidden">
                     <div className="overflow-x-auto">
                       <table className="min-w-full divide-y divide-gray-200">
@@ -239,27 +314,43 @@ const FileUpload = ({ onUpload, onClose }) => {
                   </div>
                 </div>
               )}
+            </div>
+          )}
 
-              {/* Upload Button */}
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={onClose}
-                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleUpload}
-                  disabled={isUploading}
-                  className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isUploading ? 'Uploading...' : 'Upload Statement'}
-                </button>
+          {/* Upload Progress */}
+          {isUploading && (
+            <div className="mt-6">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-gray-700">Uploading...</span>
+                <span className="text-sm text-gray-500">{uploadProgress}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${uploadProgress}%` }}
+                ></div>
               </div>
             </div>
           )}
 
-          {/* Info */}
+          {/* Action Buttons */}
+          <div className="flex justify-end gap-3 mt-6">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleUpload}
+              disabled={!selectedFile || isUploading}
+              className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isUploading ? 'Uploading...' : 'Upload Statement'}
+            </button>
+          </div>
+
+          {/* Info Box */}
           <div className="mt-6 p-4 bg-gray-50 rounded-lg">
             <div className="flex items-start gap-3">
               <Info className="h-5 w-5 text-gray-400 mt-0.5" />
@@ -273,7 +364,8 @@ const FileUpload = ({ onUpload, onClose }) => {
                   <li>Credit card statements</li>
                 </ul>
                 <p className="mt-2">
-                  The system will automatically detect your bank and categorize transactions using AI.
+                  The system will automatically detect your bank and categorize transactions.
+                  {selectedAccount && ' Transactions will be associated with the selected account.'}
                 </p>
               </div>
             </div>

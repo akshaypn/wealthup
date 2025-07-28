@@ -12,17 +12,29 @@ const getUserAccounts = async (req, res) => {
     try {
       const result = await client.query(
         `SELECT 
-          id, name, institution, type, currency, account_number, 
-          ifsc_code, current_balance, credit_limit, due_date, 
-          opened_on, is_active, created_at, updated_at
-        FROM accounts 
-        WHERE user_id = $1 AND is_active = true 
-        ORDER BY created_at DESC`,
+          a.id, a.name, a.institution, a.type, a.currency, a.account_number, 
+          a.ifsc_code, a.current_balance, a.credit_limit, a.due_date, 
+          a.opened_on, a.is_active, a.created_at, a.updated_at,
+          COALESCE(SUM(CASE WHEN t.type = 'credit' THEN t.amount ELSE -t.amount END), 0) as calculated_balance,
+          COUNT(t.id) as transaction_count
+        FROM accounts a
+        LEFT JOIN transactions t ON a.id = t.account_id
+        WHERE a.user_id = $1 AND a.is_active = true 
+        GROUP BY a.id, a.name, a.institution, a.type, a.currency, a.account_number, 
+                 a.ifsc_code, a.current_balance, a.credit_limit, a.due_date, 
+                 a.opened_on, a.is_active, a.created_at, a.updated_at
+        ORDER BY a.created_at DESC`,
         [req.user.id]
       );
 
+      // Update the current_balance with calculated balance for accounts with transactions
+      const accounts = result.rows.map(account => ({
+        ...account,
+        current_balance: account.transaction_count > 0 ? account.calculated_balance : account.current_balance
+      }));
+
       res.json({
-        accounts: result.rows
+        accounts: accounts
       });
     } finally {
       client.release();
@@ -225,17 +237,25 @@ const getAccountSummary = async (req, res) => {
     const client = await pool.connect();
     
     try {
-      // Get account balances
+      // Get account balances with calculated balance from transactions
       const accountsResult = await client.query(
         `SELECT 
-          id, name, type, current_balance, credit_limit, due_date
-        FROM accounts 
-        WHERE user_id = $1 AND is_active = true`,
+          a.id, a.name, a.type, a.current_balance, a.credit_limit, a.due_date,
+          COALESCE(SUM(CASE WHEN t.type = 'credit' THEN t.amount ELSE -t.amount END), 0) as calculated_balance,
+          COUNT(t.id) as transaction_count
+        FROM accounts a
+        LEFT JOIN transactions t ON a.id = t.account_id
+        WHERE a.user_id = $1 AND a.is_active = true
+        GROUP BY a.id, a.name, a.type, a.current_balance, a.credit_limit, a.due_date`,
         [req.user.id]
       );
 
-      // Get recent transactions for each account
-      const accounts = accountsResult.rows;
+      // Get recent transactions for each account and use calculated balance
+      const accounts = accountsResult.rows.map(account => ({
+        ...account,
+        current_balance: account.transaction_count > 0 ? account.calculated_balance : account.current_balance
+      }));
+
       for (let account of accounts) {
         const transactionsResult = await client.query(
           `SELECT 
@@ -251,11 +271,14 @@ const getAccountSummary = async (req, res) => {
 
       // Calculate totals
       const totals = accounts.reduce((acc, account) => {
+        const balance = parseFloat(account.current_balance) || 0;
+        const creditLimit = parseFloat(account.credit_limit) || 0;
+        
         if (account.type === 'credit_card') {
-          acc.credit_cards += account.current_balance || 0;
-          acc.credit_limits += account.credit_limit || 0;
+          acc.credit_cards += balance;
+          acc.credit_limits += creditLimit;
         } else {
-          acc.bank_accounts += account.current_balance || 0;
+          acc.bank_accounts += balance;
         }
         return acc;
       }, { bank_accounts: 0, credit_cards: 0, credit_limits: 0 });
@@ -289,11 +312,17 @@ const getAccountById = async (req, res) => {
     try {
       const result = await client.query(
         `SELECT 
-          id, name, institution, type, currency, account_number, 
-          ifsc_code, current_balance, credit_limit, due_date, 
-          opened_on, is_active, created_at, updated_at
-        FROM accounts 
-        WHERE id = $1 AND user_id = $2 AND is_active = true`,
+          a.id, a.name, a.institution, a.type, a.currency, a.account_number, 
+          a.ifsc_code, a.current_balance, a.credit_limit, a.due_date, 
+          a.opened_on, a.is_active, a.created_at, a.updated_at,
+          COALESCE(SUM(CASE WHEN t.type = 'credit' THEN t.amount ELSE -t.amount END), 0) as calculated_balance,
+          COUNT(t.id) as transaction_count
+        FROM accounts a
+        LEFT JOIN transactions t ON a.id = t.account_id
+        WHERE a.id = $1 AND a.user_id = $2 AND a.is_active = true
+        GROUP BY a.id, a.name, a.institution, a.type, a.currency, a.account_number, 
+                 a.ifsc_code, a.current_balance, a.credit_limit, a.due_date, 
+                 a.opened_on, a.is_active, a.created_at, a.updated_at`,
         [accountId, req.user.id]
       );
 
@@ -301,8 +330,12 @@ const getAccountById = async (req, res) => {
         return res.status(404).json({ error: 'Account not found' });
       }
 
+      const account = result.rows[0];
+      // Use calculated balance if there are transactions
+      account.current_balance = account.transaction_count > 0 ? account.calculated_balance : account.current_balance;
+
       res.json({
-        account: result.rows[0]
+        account: account
       });
     } finally {
       client.release();

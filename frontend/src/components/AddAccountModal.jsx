@@ -3,7 +3,7 @@ import axios from 'axios';
 import { X, CreditCard, Wallet, PiggyBank, Building2, Coins } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-const API_BASE_URL = process.env.VITE_API_URL || 'http://100.123.199.100:9001';
+const API_BASE_URL = process.env.VITE_API_URL || 'http://localhost:9001';
 
 const AddAccountModal = ({ onClose, onSuccess }) => {
   const [formData, setFormData] = useState({

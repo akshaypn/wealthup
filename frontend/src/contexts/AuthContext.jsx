@@ -16,7 +16,7 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(null); // Start with null, will be set after validation
   const [loading, setLoading] = useState(true);
 
-  const API_BASE_URL = process.env.VITE_API_URL || 'http://100.123.199.100:9001';
+  const API_BASE_URL = process.env.VITE_API_URL || 'http://localhost:9001';
 
   // Configure axios defaults
   useEffect(() => {

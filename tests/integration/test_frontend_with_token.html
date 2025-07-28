@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Frontend with Token</title>
+</head>
+<body>
+    <h1>Test Frontend with Token</h1>
+    <button onclick="setToken()">Set Token</button>
+    <button onclick="testAPI()">Test API</button>
+    <button onclick="clearToken()">Clear Token</button>
+    <div id="output"></div>
+
+    <script>
+        const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIwNjhmY2JmOC0xOWQ3LTRkZTgtYjQwMS1jYWMwY2UxZDcwY2MiLCJpYXQiOjE3NTM2NTc0NDUsImV4cCI6MTc1NDI2MjI0NX0.WJt1EeLRNu-wc467qEVq0gjO7NLa_zRvdOOjU7gNisM";
+        
+        function setToken() {
+            localStorage.setItem('token', token);
+            document.getElementById('output').innerHTML = 'Token set in localStorage';
+        }
+        
+        function clearToken() {
+            localStorage.removeItem('token');
+            document.getElementById('output').innerHTML = 'Token cleared from localStorage';
+        }
+        
+        async function testAPI() {
+            try {
+                const response = await fetch('http://localhost:9001/api/v1/transactions', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                const data = await response.json();
+                document.getElementById('output').innerHTML = `API Response: ${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                document.getElementById('output').innerHTML = `Error: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html> 

@@ -1,17 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery } from 'react-query';
 import axios from 'axios';
-import { Plus, Edit, Trash2, CreditCard, Wallet, PiggyBank, Building2, Coins } from 'lucide-react';
+import { Plus, Edit, Trash2, CreditCard, Wallet, PiggyBank, Building2, Coins, Upload, BookOpen } from 'lucide-react';
 import toast from 'react-hot-toast';
 import AddAccountModal from './AddAccountModal';
+import FileUpload from './FileUpload';
+import AccountLedger from './AccountLedger';
 import { useAuth } from '../contexts/AuthContext';
 
-const API_BASE_URL = process.env.VITE_API_URL || 'http://100.123.199.100:9001';
+const API_BASE_URL = process.env.VITE_API_URL || 'http://localhost:9001';
 
 const AccountManager = () => {
   const { isAuthenticated } = useAuth();
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState(null);
+  const [showUpload, setShowUpload] = useState(false);
+  const [uploadForAccount, setUploadForAccount] = useState(null);
+  const [showLedger, setShowLedger] = useState(false);
+  const [ledgerAccount, setLedgerAccount] = useState(null);
 
   // Fetch accounts
   const { data: accountsData, isLoading, refetch } = useQuery({
@@ -25,7 +31,7 @@ const AccountManager = () => {
   });
 
   // Fetch account summary
-  const { data: summaryData } = useQuery({
+  const { data: summaryData, refetch: refetchSummary } = useQuery({
     queryKey: ['account-summary'],
     queryFn: async () => {
       const response = await axios.get(`${API_BASE_URL}/api/v1/accounts/summary`);
@@ -88,6 +94,7 @@ const AccountManager = () => {
       await axios.delete(`${API_BASE_URL}/api/v1/accounts/${accountId}`);
       toast.success('Account deleted successfully');
       refetch();
+      refetchSummary();
     } catch (error) {
       console.error('Delete account error:', error);
       toast.error('Failed to delete account');
@@ -97,7 +104,47 @@ const AccountManager = () => {
   const handleAccountCreated = () => {
     setShowAddModal(false);
     refetch();
+    refetchSummary();
     toast.success('Account created successfully');
+  };
+
+  const handleUploadForAccount = (account) => {
+    setUploadForAccount(account);
+    setShowUpload(true);
+  };
+
+  const handleViewLedger = (account) => {
+    setLedgerAccount(account);
+    setShowLedger(true);
+  };
+
+  const handleFileUpload = async (file, detectedBank, selectedAccountId) => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('bank', detectedBank || 'canara_bank');
+      
+      // Use the account we're uploading for
+      const accountId = uploadForAccount ? uploadForAccount.id : selectedAccountId;
+      if (accountId) {
+        formData.append('account_id', accountId);
+      }
+
+      await axios.post(`${API_BASE_URL}/api/v1/upload/csv`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      toast.success('File uploaded successfully! Processing transactions...');
+      setShowUpload(false);
+      setUploadForAccount(null);
+      refetch();
+      refetchSummary();
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error('Failed to upload file. Please try again.');
+    }
   };
 
   if (isLoading) {
@@ -108,13 +155,26 @@ const AccountManager = () => {
     );
   }
 
+  // If showing ledger, render the ledger component
+  if (showLedger && ledgerAccount) {
+    return (
+      <AccountLedger 
+        accountId={ledgerAccount.id} 
+        onClose={() => {
+          setShowLedger(false);
+          setLedgerAccount(null);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Accounts</h2>
-          <p className="text-gray-600">Manage your financial accounts</p>
+          <p className="text-gray-600">Manage your financial accounts and upload statements</p>
         </div>
         <button
           onClick={() => setShowAddModal(true)}
@@ -243,6 +303,20 @@ const AccountManager = () => {
                     </div>
                     <div className="flex space-x-1">
                       <button
+                        onClick={() => handleViewLedger(account)}
+                        className="p-2 text-green-600 hover:text-green-800 hover:bg-green-50 rounded-md transition-colors"
+                        title="View transaction ledger"
+                      >
+                        <BookOpen className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => handleUploadForAccount(account)}
+                        className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors"
+                        title="Upload statement for this account"
+                      >
+                        <Upload className="h-4 w-4" />
+                      </button>
+                      <button
                         onClick={() => setSelectedAccount(account)}
                         className="p-1 text-gray-400 hover:text-gray-600"
                       >
@@ -268,6 +342,18 @@ const AccountManager = () => {
         <AddAccountModal
           onClose={() => setShowAddModal(false)}
           onSuccess={handleAccountCreated}
+        />
+      )}
+
+      {/* File Upload Modal */}
+      {showUpload && (
+        <FileUpload
+          onClose={() => {
+            setShowUpload(false);
+            setUploadForAccount(null);
+          }}
+          onUpload={handleFileUpload}
+          selectedAccount={uploadForAccount}
         />
       )}
     </div>

@@ -10,7 +10,6 @@ services:
     depends_on:
       - backend
     volumes:
-      - ./frontend:/app
       - /app/node_modules
     networks:
       - wealthup-network
@@ -24,12 +23,19 @@ services:
       - AI_SERVICE_URL=http://ai-service:8000
       - NODE_ENV=development
       - DATABASE_URL=postgresql://wealthup_user:wealthup_password@postgres:5432/wealthup
-      - CORS_ORIGIN=http://100.123.199.100:9000
+      - CORS_ORIGIN=http://localhost:9000
+      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production}
+      - JWT_EXPIRES_IN=7d
+      - BCRYPT_ROUNDS=12
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI:-http://localhost:9000}
+      - RATE_LIMIT_WINDOW_MS=900000
+      - RATE_LIMIT_MAX_REQUESTS=100
     depends_on:
       - ai-service
       - postgres
     volumes:
-      - ./backend:/app
       - /app/node_modules
       - ./data:/app/data
     networks:

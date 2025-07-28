@@ -223,8 +223,27 @@ class CreditCardParser extends BaseParser {
     this.supportedFormats = [
       ['Transaction Date', 'Post Date', 'Description', 'Category', 'Type', 'Amount'],
       ['Date', 'Description', 'Category', 'Amount', 'Type'],
-      ['Transaction Date', 'Description', 'Amount', 'Category']
+      ['Transaction Date', 'Description', 'Amount', 'Category'],
+      ['Date', 'Post Date', 'Description', 'Category', 'Type', 'Amount'],
+      ['Transaction Date', 'Description', 'Category', 'Type', 'Amount']
     ];
+  }
+
+  canParse(headers) {
+    // Only match if it's clearly a credit card statement
+    const hasCreditCardIndicators = headers.some(header => 
+      header.toLowerCase().includes('post date') ||
+      header.toLowerCase().includes('category') ||
+      header.toLowerCase().includes('type')
+    );
+    
+    const hasStandardFields = headers.some(header => 
+      header.toLowerCase().includes('transaction date') ||
+      header.toLowerCase().includes('description') ||
+      header.toLowerCase().includes('amount')
+    );
+    
+    return hasCreditCardIndicators && hasStandardFields;
   }
 
   parseTransaction(row) {

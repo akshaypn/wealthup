@@ -31,7 +31,7 @@ import SpendingChart from './components/SpendingChart'
 import CategoryChart from './components/CategoryChart'
 import AccountManager from './components/AccountManager'
 
-const API_BASE_URL = process.env.VITE_API_URL || 'http://100.123.199.100:9001'
+const API_BASE_URL = process.env.VITE_API_URL || 'http://localhost:9001'
 
 // Create a client
 const queryClient = new QueryClient()
@@ -40,9 +40,8 @@ const GOOGLE_CLIENT_ID = '411624710752-c6ju3ke4galebaheekegct0pq1kenoa8.apps.goo
 
 function Dashboard() {
   const { user, logout, isAuthenticated } = useAuth()
-  const [selectedPeriod, setSelectedPeriod] = useState('30d')
+  const [selectedPeriod, setSelectedPeriod] = useState('all')
   const [selectedCategory, setSelectedCategory] = useState(null)
-  const [showUpload, setShowUpload] = useState(false)
   const [isCategorizing, setIsCategorizing] = useState(false)
   const [categorizeProgress, setCategorizeProgress] = useState({ current: 0, total: 0 })
   const [activeTab, setActiveTab] = useState('dashboard')
@@ -122,7 +121,6 @@ function Dashboard() {
       })
 
       toast.success('File uploaded successfully! Processing transactions...')
-      setShowUpload(false)
       refetchTransactions()
     } catch (error) {
       console.error('Upload error:', error)
@@ -186,13 +184,6 @@ function Dashboard() {
                 <p className="text-gray-600">Welcome back, {user?.name}!</p>
               </div>
               <div className="flex items-center space-x-4">
-                <button
-                  onClick={() => setShowUpload(true)}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload Statement
-                </button>
                 {uncategorizedCount > 0 && (
                   <button
                     onClick={handleCategorizeAll}
@@ -367,12 +358,7 @@ function Dashboard() {
       </main>
 
       {/* File Upload Modal */}
-      {showUpload && (
-        <FileUpload
-          onClose={() => setShowUpload(false)}
-          onUpload={handleFileUpload}
-        />
-      )}
+      {/* Removed as per edit hint */}
     </div>
   )
 }

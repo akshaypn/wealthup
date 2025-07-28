@@ -52,11 +52,13 @@ cd frontend && npm install
 cd ../backend && npm install
 
 # Configure environment
-cp backend/env.example backend/.env
+cp env.example .env
 cp ai-service/env.example ai-service/.env
 
-# Add your OpenAI API key to ai-service/.env
-echo "OPENAI_API_KEY=your-api-key-here" >> ai-service/.env
+# Edit .env and add your API keys
+# - OpenAI API key for AI categorization
+# - Google OAuth credentials (optional)
+# - JWT secret for authentication
 
 # Start services
 docker-compose up -d
@@ -73,10 +75,12 @@ docker-compose up -d
 | **CSV Upload & Parsing** | ✅ Complete | Support for Canara Bank and extensible format |
 | **AI Transaction Categorization** | ✅ Complete | OpenAI-powered intelligent classification |
 | **Real-time Dashboard** | ✅ Complete | Live spending analytics and insights |
-| **Multi-Account Management** | ✅ Complete | Track multiple bank accounts |
+| **Multi-Account Management** | ✅ Complete | Track multiple bank accounts with balance calculation |
 | **Interactive Charts** | ✅ Complete | Spending trends and category breakdown |
 | **Google OAuth** | ✅ Complete | Secure third-party authentication |
 | **JWT Authentication** | ✅ Complete | Stateless session management |
+| **Account Ledger** | ✅ Complete | Detailed transaction history with running balances |
+| **Balance Reconciliation** | ✅ Complete | Automatic balance calculation from transactions |
 
 ### 📊 Analytics & Insights
 
