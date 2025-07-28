@@ -20,12 +20,27 @@ const API_BASE_URL = process.env.VITE_API_URL || 'http://localhost:9001';
 const AccountLedger = ({ accountId, onClose }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [showReconciliation, setShowReconciliation] = useState(false);
+  const [transactionFilter, setTransactionFilter] = useState('all'); // 'all', 'debit', 'credit'
+  const [dateFilter, setDateFilter] = useState('all'); // 'all', '7d', '30d', '90d'
 
   // Fetch account ledger
   const { data: ledgerData, isLoading, refetch } = useQuery({
-    queryKey: ['account-ledger', accountId, currentPage],
+    queryKey: ['account-ledger', accountId, currentPage, transactionFilter, dateFilter],
     queryFn: async () => {
-      const response = await axios.get(`${API_BASE_URL}/api/v1/accounts/${accountId}/ledger?page=${currentPage}&limit=50`);
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: '50'
+      });
+      
+      if (transactionFilter !== 'all') {
+        params.append('type', transactionFilter);
+      }
+      
+      if (dateFilter !== 'all') {
+        params.append('period', dateFilter);
+      }
+      
+      const response = await axios.get(`${API_BASE_URL}/api/v1/accounts/${accountId}/ledger?${params.toString()}`);
       return response.data;
     },
     refetchOnWindowFocus: false,
@@ -199,6 +214,55 @@ const AccountLedger = ({ accountId, onClose }) => {
           </div>
         </div>
       )}
+
+      {/* Filters */}
+      <div className="bg-white shadow rounded-lg p-6 mb-6">
+        <div className="flex flex-wrap gap-4 items-center">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Transaction Type
+            </label>
+            <select
+              value={transactionFilter}
+              onChange={(e) => setTransactionFilter(e.target.value)}
+              className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">All Transactions</option>
+              <option value="debit">Debits Only</option>
+              <option value="credit">Credits Only</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Date Range
+            </label>
+            <select
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">All Time</option>
+              <option value="7d">Last 7 Days</option>
+              <option value="30d">Last 30 Days</option>
+              <option value="90d">Last 90 Days</option>
+            </select>
+          </div>
+          
+          <div className="ml-auto">
+            <button
+              onClick={() => {
+                setTransactionFilter('all');
+                setDateFilter('all');
+                setCurrentPage(1);
+              }}
+              className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              Clear Filters
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* Transactions Table */}
       <div className="bg-white shadow rounded-lg">

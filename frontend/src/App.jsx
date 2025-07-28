@@ -29,6 +29,7 @@ import FileUpload from './components/FileUpload'
 import TransactionList from './components/TransactionList'
 import SpendingChart from './components/SpendingChart'
 import CategoryChart from './components/CategoryChart'
+import MonthlyChart from './components/MonthlyChart'
 import AccountManager from './components/AccountManager'
 
 const API_BASE_URL = process.env.VITE_API_URL || 'http://localhost:9001'
@@ -52,10 +53,11 @@ function Dashboard() {
   }
 
   // Fetch transactions
-  const { data: transactions, isLoading: transactionsLoading, refetch: refetchTransactions } = useQuery({
+  const { data: transactions, isLoading: transactionsLoading, error: transactionsError, refetch: refetchTransactions } = useQuery({
     queryKey: ['transactions', selectedPeriod],
     queryFn: async () => {
       const response = await axios.get(`${API_BASE_URL}/api/v1/transactions?period=${selectedPeriod}`)
+      console.log('Transactions response:', response.data)
       return response.data
     },
     refetchOnWindowFocus: false,
@@ -261,8 +263,8 @@ function Dashboard() {
             {/* Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="bg-white p-6 rounded-lg shadow">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Spending Trends</h3>
-                <SpendingChart transactions={transactions || []} />
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Monthly Trends</h3>
+                <MonthlyChart transactions={transactions || []} />
               </div>
 
               <div className="bg-white p-6 rounded-lg shadow">
@@ -270,6 +272,28 @@ function Dashboard() {
                 <CategoryChart transactions={transactions || []} />
               </div>
             </div>
+
+            {/* Daily Spending Chart */}
+            <div className="bg-white p-6 rounded-lg shadow">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Daily Spending Trends</h3>
+              <SpendingChart transactions={transactions || []} />
+            </div>
+
+            {/* Debug Info */}
+            {process.env.NODE_ENV === 'development' && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                <h4 className="text-sm font-medium text-yellow-800 mb-2">Debug Info</h4>
+                <div className="text-sm text-yellow-700 space-y-1">
+                  <p>Transactions Loading: {transactionsLoading ? 'Yes' : 'No'}</p>
+                  <p>Transactions Count: {transactions ? transactions.length : 'N/A'}</p>
+                  <p>Selected Period: {selectedPeriod}</p>
+                  <p>Is Authenticated: {isAuthenticated ? 'Yes' : 'No'}</p>
+                  {transactionsError && (
+                    <p>Error: {transactionsError.message}</p>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Recent Transactions */}
             <div className="bg-white rounded-lg shadow">
